@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux & Networking Assessment Portal</title>
+    <style>
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #2c3e50; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        input[type="text"], input[type="email"], textarea, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { background-color: #27ae60; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; margin-top: 10px; }
+        .btn:hover { background-color: #219150; }
+        .btn-admin { background-color: #2980b9; margin-top: 20px; }
+        .btn-admin:hover { background-color: #1f6391; }
+        .question-card { background: #fafafa; border-left: 4px solid #3498db; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .admin-login, .quiz-section, .admin-panel { display: none; }
+        .warning-box { background: #e74c3c; color: white; padding: 10px; text-align: center; border-radius: 4px; margin-bottom: 15px; display: none; }
+        .student-submission { border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 20px; background: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Linux & Networking Assessment</h1>
+    
+    <!-- Proctoring Warning -->
+    <div id="warningBox" class="warning-box">
+        ⚠️ Warning: Tab switching detected! This incident has been logged for proctoring.
+    </div>
+
+    <!-- STEP 1: Student Information -->
+    <div id="studentInfoSection">
+        <h2>Student Login</h2>
+        <div class="form-group">
+            <label for="studentName">Full Name:</label>
+            <input type="text" id="studentName" placeholder="Enter your full name" required>
+        </div>
+        <div class="form-group">
+            <label for="studentEmail">Email Address:</label>
+            <input type="email" id="studentEmail" placeholder="Enter your email" required>
+        </div>
+        <button class="btn" onclick="startTest()">Start Assessment</button>
+        <button class="btn btn-admin" onclick="showAdminLogin()">Teacher Admin Panel</button>
+    </div>
+
+    <!-- STEP 2: Assessment Questions -->
+    <div id="quizSection" class="quiz-section">
+        <h2>Assessment Questions</h2>
+        
+        <div class="question-card">
+            <p><strong>Q1. Explain the Linux file system hierarchy and the purpose of /etc and /var directories? (5 Marks)</strong></p>
+            <textarea id="ans1" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+
+        <div class="question-card">
+            <p><strong>Q2. What is the difference between TCP and UDP protocols? Provide use-case scenarios for both? (5 Marks)</strong></p>
+            <textarea id="ans2" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+
+        <div class="question-card">
+            <p><strong>Q3. Explain the concept of the OSI model and its layers? (5 Marks)</strong></p>
+            <textarea id="ans3" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+
+        <div class="question-card">
+            <p><strong>Q4. Explain file permissions in Linux  and how to change ownership using chown? (5 Marks)</strong></p>
+            <textarea id="ans4" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+
+        <div class="question-card">
+            <p><strong>Q5.Which modern command-line tool is used to display users list and password file in linux? (5 Marks)</strong></p>
+            <textarea id="ans5" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+        <div class="question-card">
+            <p><strong>Q6.Briefly explain the steps involved in the TCP 3-way handshake(5 Marks)</strong></p>
+            <textarea id="ans6" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+        <div class="question-card">
+            <p><strong>Q7. What is the purpose of the /tmp directory in Linux? (5 Marks)</strong></p>
+            <textarea id="ans7" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+        <div class="question-card">
+            <p><strong>Q8. What is the fundamental difference between a static Router and a switch? (5 Marks)</strong></p>
+            <textarea id="ans8" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+        <div class="question-card">
+            <p><strong>Q9.Explain the concept of Routing with its types  (5 Marks)</strong></p>
+            <textarea id="ans9" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+        <div class="question-card">
+            <p><strong>Q10.Expalin the concept of port and protocol and explain DHCP,ftp,smb,http, https with this port numbers?(5 Marks)</strong></p>
+            <textarea id="ans10" rows="4" placeholder="Write your answer here..."></textarea>
+        </div>
+
+        <button class="btn" onclick="submitAssessment()">Submit Final Assessment</button>
+    </div>
+
+    <!-- STEP 3: Admin Login Modal -->
+    <div id="adminLoginSection" class="admin-login">
+        <h2>Admin Authentication</h2>
+        <div class="form-group">
+            <label for="adminPassword">Enter Admin Password:</label>
+            <input type="password" id="adminPassword" placeholder="Enter password (default: admin123)">
+        </div>
+        <button class="btn btn-admin" onclick="verifyAdmin()">Login to Dashboard</button>
+    </div>
+
+    <!-- STEP 4: Admin Grading Panel -->
+    <div id="adminPanel" class="admin-panel">
+        <h2>Teacher Grading Dashboard</h2>
+        <div id="submissionsContainer"></div>
+        <button class="btn" style="background-color: #7f8c8d;" onclick="location.reload()">Exit Admin Panel</button>
+    </div>
+</div>
+<script>
+// Global State Management
+let currentStudent = { name: "", email: "", tabSwitches: 0, answers: [] };
+let submissions = JSON.parse(localStorage.getItem('portal_submissions')) || [];
+
+// 1. PROCTORING & TAB-SWITCH DETECTION
+document.addEventListener("visibilitychange", function() {
+    if (document.hidden && document.getElementById('quizSection').style.display === 'block') {
+        currentStudent.tabSwitches++;
+        const warningBox = document.getElementById('warningBox');
+        warningBox.style.display = 'block';
+        setTimeout(() => { warningBox.style.display = 'none'; }, 5000);
+    }
+});
+
+// 2. STUDENT FLOW & CAMERA LOGIC
+async function startTest() {
+    const name = document.getElementById('studentName').value.trim();
+    const email = document.getElementById('studentEmail').value.trim();
+
+    if (!name || !email) {
+        alert("Please enter both your Full Name and Email Address.");
+        return;
+    }
+
+    // Camera Activation
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const videoElement = document.getElementById('webcam');
+        videoElement.srcObject = stream;
+        document.getElementById('cameraContainer').style.display = 'block';
+    } catch (err) {
+        alert("Notice:Camera access is not availabe.Processing with the assessment without camera monitoring. Please ensure you are not switching tabs or cheating.");
+        console.error("Camera Error:", err);
+        
+    }
+
+    currentStudent.name = name;
+    currentStudent.email = email;
+
+    document.getElementById('studentInfoSection').style.display = 'none';
+    document.getElementById('quizSection').style.display = 'block';
+}
+
+function submitAssessment() {
+    // Stop Camera Stream
+    const videoElement = document.getElementById('webcam');
+    if (videoElement && videoElement.srcObject) {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    for (let i = 1; i <= 5; i++) {
+        currentStudent.answers.push(document.getElementById(`ans${i}`).value.trim());
+    }
+
+    submissions.push(currentStudent);
+    localStorage.setItem('portal_submissions', JSON.stringify(submissions));
+
+    alert("Assessment submitted successfully! Results will be published to your email after review.");
+    location.reload();
+}
+
+// 3. ADMIN DASHBOARD LOGIC
+function showAdminLogin() {
+    document.getElementById('studentInfoSection').style.display = 'none';
+    document.getElementById('adminLoginSection').style.display = 'block';
+}
+
+function verifyAdmin() {
+    const pass = document.getElementById('adminPassword').value;
+    if (pass === "admin123") {
+        document.getElementById('adminLoginSection').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        loadSubmissions();
+    } else {
+        alert("Incorrect Password!");
+    }
+}
+
+function loadSubmissions() {
+    const container = document.getElementById('submissionsContainer');
+    container.innerHTML = "";
+
+    if (submissions.length === 0) {
+        container.innerHTML = "<p>No submissions found.</p>";
+        return;
+    }
+
+    submissions.forEach((sub, subIdx) => {
+        const subDiv = document.createElement('div');
+        subDiv.className = 'student-submission';
+        
+        let questionsHtml = "";
+        const questionsText = [
+            "Q1: Explain the Linux file system hierarchy and the purpose of /etc and /var directories?",
+            "Q2: What is the difference between TCP and UDP protocols? Provide use-case scenarios for both?",
+            "Q3: Explain the concept of the OSI model and its layers?",
+            "Q4: Explain file permissions in Linux  and how to change ownership using chown",
+            "Q5: Which modern command-line tool is used to display users list and password file in linux?",
+            "Q6: Briefly explain the steps involved in the TCP 3-way handshake",
+            "Q7: What is the purpose of the /tmp directory in Linux?",
+            "Q8: What is the fundamental difference between a static Router and a switch?",
+            "Q9: Explain the concept of Routing with its types",
+            "Q10: Explain the concept of port and protocol and explain DHCP, ftp, smb, http, https with their port numbers?",
+        ];
+
+        sub.answers.forEach((ans, qIdx) => {
+            questionsHtml += `
+                <div style="margin-bottom: 12px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+                    <p><strong>${questionsText[qIdx]}</strong></p>
+                    <p><em>Student Answer:</em> ${ans || "No answer provided."}</p>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <input type="number" id="marks_${subIdx}_${qIdx}" min="0" max="10" placeholder="Marks (0-10)" style="width: 120px;">
+                        <input type="text" id="comment_${subIdx}_${qIdx}" placeholder="Feedback comment" style="flex: 1;">
+                    </div>
+                </div>
+            `;
+        });
+
+        subDiv.innerHTML = `
+            <h3>Student: ${sub.name} (${sub.email})</h3>
+            <p><strong>Proctoring Report:</strong> ${sub.tabSwitches} tab switch(es) detected.</p>
+            <hr>
+            ${questionsHtml}
+            <button class="btn" onclick="gradeAndPublish(${subIdx})">Publish Result & Send Email</button>
+        `;
+        container.appendChild(subDiv);
+    });
+}
+
+// 4. GRADE CALCULATION & FORMSPREE EMAIL API
+function gradeAndPublish(subIdx) {
+    const sub = submissions[subIdx];
+    let totalScore = 0;
+    let feedbackSummary = "";
+
+    for (let i = 0; i < 5; i++) {
+        const marks = parseInt(document.getElementById(`marks_${subIdx}_${i}`).value) || 0;
+        const comment = document.getElementById(`comment_${subIdx}_${i}`).value || "No remarks";
+        
+        totalScore += marks;
+        feedbackSummary += `Q${i + 1} Marks: ${marks}/10\nFeedback: ${comment}\n----------------------------------------\n`;
+    }
+
+    const gradeStatus = totalScore >= 30 ? "PASSED 🎉" : "FAILED ❌";
+
+    publishAndSendEmail(sub.email, sub.name, totalScore, gradeStatus, feedbackSummary);
+}
+
+async function publishAndSendEmail(studentEmail, studentName, totalScore, gradeStatus, feedbackSummary) {
+    const formData = new FormData();
+    
+    formData.append("email", studentEmail);
+    formData.append("_replyto", studentEmail);
+    formData.append("subject", `Linux & Networking Test Result - ${gradeStatus}`);
+    formData.append("message", 
+        `Hello ${studentName},\n\n` +
+        `Your Linux & Networking Online Assessment result has been published.\n\n` +
+        `----------------------------------------\n` +
+        `RESULT STATUS: ${gradeStatus}\n` +
+        `TOTAL SCORE  : ${totalScore} / 50\n` +
+        `----------------------------------------\n\n` +
+        `DETAILED MARKS & FEEDBACK:\n` +
+        `${feedbackSummary}\n\n` +
+        `Regards,\nByte Head Coder Assessment Team`
+    );
+
+    try {
+        // 🔗 यहाँ अपना Formspree URL बदलें (जैसे: https://formspree.io/f/xyzyqkab)
+        const response = await fetch("https://formspree.io/f/xppwkapw", {
+            method: "POST",
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            alert(`Result published & email sent successfully to ${studentEmail}!`);
+        } else {
+            const data = await response.json();
+            alert(`Formspree Error: ${data.error || 'Failed to send'}`);
+        }
+    } catch (error) {
+        console.error("Error sending email:", error);
+        alert("Network error: Please check internet connection or disable ad-blockers.");
+    }
+}
+</script>
+</body>
+</html>
