@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Assessment Portal</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f4f6f9;margin:0;padding:15px}
+.box{max-width:900px;margin:auto;background:#fff;padding:22px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.1)}
+h1,h2,h3{color:#2c3e50}h1,.c{text-align:center}
+label{font-weight:bold;display:block;margin:10px 0 4px}
+input,textarea{width:100%;padding:9px;border:1px solid #ccc;border-radius:4px}
+.btn{background:#27ae60;color:#fff;padding:9px 16px;border:0;border-radius:4px;cursor:pointer;font-size:14px;margin:6px 6px 0 0}
+.b{background:#2980b9}.r{background:#c0392b}.g{background:#7f8c8d}
+.card{background:#fafafa;border-left:4px solid #3498db;padding:14px;margin:12px 0;border-radius:4px}
+.bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.tag{padding:2px 8px;border-radius:10px;font-size:12px;color:#fff;background:#f39c12}.ok{background:#27ae60}.no{background:#95a5a6}
+.hide{display:none}.pre{white-space:pre-wrap}.muted{color:#777;font-size:13px}
+#timer{position:sticky;top:0;background:#2c3e50;color:#fff;padding:8px;text-align:center;border-radius:4px;font-weight:bold;z-index:5}
+#warn{background:#e74c3c;color:#fff;padding:8px;text-align:center;border-radius:4px;margin:8px 0}
+#cam{position:fixed;bottom:12px;right:12px;width:150px;background:#000;border-radius:6px;overflow:hidden;z-index:9;box-shadow:0 2px 8px rgba(0,0,0,.3)}#cam video{width:100%;display:block}
+.row{display:flex;gap:8px}.row .s{flex:0 0 110px}
+</style></head><body><div class="box">
+<h1>Linux & Networking Assessment Portal</h1>
+<div id="setup" class="card hide">⚠️ Firebase is not set up yet. Paste your Firebase config and teacher email at the top of the script.</div>
+<div id="authV" class="hide">
+<h2 class="c" id="authT">Login</h2>
+<div id="regF" class="hide"><label>Full Name</label><input id="rn"></div>
+<label>Email</label><input id="em" type="email"><label>Password</label><input id="pw" type="password">
+<button class="btn" style="width:100%" id="authB" onclick="doAuth()">Login</button>
+<p class="muted c"><a href="#" id="authS" onclick="toggleAuth();return false">New student? Register</a></p>
+<hr><button class="btn b" style="width:100%" onclick="showT(true)">Teacher Admin Panel</button></div>
+<div id="tV" class="hide"><h2 class="c">Teacher Admin Panel</h2><label>Teacher Password</label>
+<input id="tpw" type="password" placeholder="Enter teacher password" onkeydown="if(event.key==='Enter')tLogin()">
+<button class="btn b" style="width:100%" onclick="tLogin()">Login to Dashboard</button>
+<p class="muted c"><a href="#" onclick="tReset();return false">Forgot password? Send reset email</a></p>
+<button class="btn g" style="width:100%" onclick="showT(false)">← Back</button></div>
+<div id="appV" class="hide"><div class="bar"><b id="who"></b><button class="btn g" onclick="auth.signOut()">Logout</button></div><hr><div id="main"></div></div>
+</div>
+<div id="cam" class="hide"><video id="vid" autoplay muted playsinline></video></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ===== CONFIG: paste your Firebase web-app config and teacher email (lowercase) =====
+const CFG={apiKey:"AIzaSyDWK0dH9bIhd5_giS6KUW-rpdzFl1XuSrE",authDomain:"portal-7086.firebaseapp.com",projectId:"portal-7086",storageBucket:"portal-7086.firebasestorage.app",messagingSenderId:"192480707605",appId:"1:192480707605:web:d3ad6114d6bd9f98f0fa1c"};
+const TEACHER="akshitmodgil999@gmail.com";
+const REQUIRE_CAMERA=false; // set to true to stop students who deny camera access from starting a test
+// ====================================================================================
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=t=>t&&t.toDate?t.toDate().toLocaleString():"";
+const TS=()=>firebase.firestore.FieldValue.serverTimestamp();
+let auth,db,me,reg=false,busy=false,act=null,tick=null,regMode=false,T={},SUBS=[];
+window.onunhandledrejection=e=>alert(e.reason&&e.reason.message||e.reason);
+if(typeof firebase==="undefined"){$("setup").textContent="⚠️ Firebase could not load. Download this file and open it in Chrome or Edge with an internet connection, or host it online. It will not work inside the chat preview.";$("setup").classList.remove("hide")}else if(CFG.apiKey.startsWith("YOUR_")){$("setup").classList.remove("hide")}else{
+ firebase.initializeApp(CFG);auth=firebase.auth();db=firebase.firestore();
+ auth.onAuthStateChanged(u=>{if(!reg)route(u)});}
+
+function route(u){me=u;stopT();$("tV").classList.add("hide");$("authV").classList.toggle("hide",!!u);$("appV").classList.toggle("hide",!u);
+ if(!u)return;const t=u.email.toLowerCase()===TEACHER.toLowerCase();
+ $("who").textContent=(t?"👩‍🏫 Teacher: ":"🎓 Student: ")+(u.displayName||u.email);t?tTests():sHome();}
+function toggleAuth(){regMode=!regMode;$("regF").classList.toggle("hide",!regMode);
+ $("authT").textContent=$("authB").textContent=regMode?"Register":"Login";
+ $("authS").textContent=regMode?"Have an account? Login":"New student? Register";}
+async function doAuth(){const e=$("em").value.trim(),p=$("pw").value,n=$("rn").value.trim();
+ if(!e||!p||(regMode&&!n))return alert("Please fill all fields.");
+ try{if(regMode){reg=true;const c=await auth.createUserWithEmailAndPassword(e,p);await c.user.updateProfile({displayName:n});reg=false;route(auth.currentUser)}
+ else await auth.signInWithEmailAndPassword(e,p);}
+ catch(x){reg=false;alert(x.code==="auth/email-already-in-use"?"This email is already registered.":x.code==="auth/weak-password"?"Password must be at least 6 characters.":"Login/registration failed. Check your details.")}}
+
+function showT(on){$("authV").classList.toggle("hide",on);$("tV").classList.toggle("hide",!on)}
+async function tLogin(){const p=$("tpw").value;if(!p)return alert("Enter the teacher password.");
+ try{await auth.signInWithEmailAndPassword(TEACHER,p);$("tpw").value=""}catch(e){alert("Incorrect teacher password.")}}
+async function tReset(){if(!confirm("Send a password-reset email to the teacher address ("+TEACHER+")?"))return;
+ try{await auth.sendPasswordResetEmail(TEACHER);alert("Reset email sent. Check the teacher inbox.")}catch(e){alert("Could not send reset email: "+e.message)}}
+function loadSample(){$("tt").value="Linux & Networking Assessment";$("td").value=60;$("qs").innerHTML="";
+ ["Explain the Linux file system hierarchy and the purpose of /etc and /var directories?","What is the difference between TCP and UDP protocols? Provide use-case scenarios for both?","Explain the concept of the OSI model and its layers?","Explain file permissions in Linux and how to change ownership using chown?","Which modern command-line tool is used to display users list and password file in Linux?","Briefly explain the steps involved in the TCP 3-way handshake.","What is the purpose of the /tmp directory in Linux?","What is the fundamental difference between a static Router and a switch?","Explain the concept of Routing with its types.","Explain the concept of port and protocol, and explain DHCP, FTP, SMB, HTTP, HTTPS with their port numbers."].forEach(q=>addQ(q,5))}
+
+async function camOn(){try{const s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});$("vid").srcObject=s;$("cam").classList.remove("hide");return true}catch(e){return false}}
+function camOff(){const v=$("vid");if(v.srcObject)v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;$("cam").classList.add("hide")}
+function snap(f){const v=$("vid");if(!act||!act.cam||!v.videoWidth)return;if(!f&&act.snaps.length>=8)return;
+ const c=document.createElement("canvas");c.width=160;c.height=Math.round(160*v.videoHeight/v.videoWidth);c.getContext("2d").drawImage(v,0,0,c.width,c.height);act.snaps.push(c.toDataURL("image/jpeg",.5))}
+
+// ================= STUDENT =================
+async function sHome(){$("main").innerHTML="<p>Loading…</p>";
+ const[t,s]=await Promise.all([db.collection("tests").where("published","==",true).get(),db.collection("submissions").where("studentUid","==",me.uid).get()]);
+ const sub={};s.forEach(d=>sub[d.data().testId]=d.data());T={};
+ const ts=t.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+ let h="<h2>My Dashboard</h2>"+(ts.length?"":"<p>No tests available yet.</p>");
+ ts.forEach(x=>{T[x.id]=x;const u=sub[x.id];
+  h+=`<div class="card"><h3>${esc(x.title)}</h3><p class="muted">⏱ ${x.durationMin} min · ${x.total} marks · ${x.questions.length} questions</p>`+
+  (!u?`<button class="btn" onclick="sStart('${x.id}')">Start Test</button>`:
+   u.released?`<span class="tag ok">Result: ${u.totalScore}/${u.totalMax}</span> <button class="btn b" onclick="sReview('${x.id}')">View Marks & Review</button>`:
+   `<span class="tag">Submitted – awaiting teacher review</span>`)+"</div>"});
+ $("main").innerHTML=h;}
+async function sStart(id){const t=T[id];
+ if(!confirm(`Start "${t.title}"? You will have ${t.durationMin} minutes. The timer cannot be paused.`))return;
+ const cam=await camOn();
+ if(!cam){if(REQUIRE_CAMERA)return alert("Camera access is required for this test. Please allow the camera and try again.");alert("Camera is not available. The test will continue, and your teacher will see that the camera was off.")}
+ const k="att_"+me.uid+"_"+id;let a=JSON.parse(localStorage.getItem(k)||"null");
+ if(!a){a={start:Date.now(),ans:[],tabs:0};localStorage.setItem(k,JSON.stringify(a))}
+ act={t,k,a,cam,snaps:[],iv:Math.max(60,Math.round(t.durationMin*7.5)),n:0};setTimeout(()=>snap(),2000);
+ let h=`<div id="timer"></div><div id="warn" class="hide">⚠️ Tab switching detected and logged.</div><h2>${esc(t.title)}</h2>`;
+ t.questions.forEach((q,i)=>h+=`<div class="card"><b>Q${i+1}. ${esc(q.text)} (${q.marks} Marks)</b><textarea rows="4" id="a${i}" oninput="save()">${esc(a.ans[i]||"")}</textarea></div>`);
+ $("main").innerHTML=h+`<button class="btn" style="width:100%" onclick="sSubmit()">Submit Final Assessment</button>`;
+ tick=setInterval(clock,1000);clock();}
+function save(){act.a.ans=act.t.questions.map((_,i)=>$("a"+i).value);localStorage.setItem(act.k,JSON.stringify(act.a))}
+function clock(){if(!act)return;act.n++;if(act.cam&&act.n%act.iv===0)snap();const r=act.a.start+act.t.durationMin*6e4-Date.now();
+ if(r<=0){$("timer").textContent="Time is up – submitting…";return sSubmit(true)}
+ const s=Math.floor(r/1e3);$("timer").textContent=`⏱ Time left: ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`}
+function stopT(){clearInterval(tick);act=null;camOff()}
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&act&&$("warn")){act.a.tabs++;save();
+ $("warn").classList.remove("hide");setTimeout(()=>$("warn")&&$("warn").classList.add("hide"),5000)}});
+window.addEventListener("beforeunload",e=>{if(act){e.preventDefault();e.returnValue=""}});
+async function sSubmit(auto){if(busy||!act)return;save();const t=act.t,a=act.a;
+ const n=a.ans.filter(x=>!x.trim()).length;
+ if(!auto&&n&&!confirm(`${n} question(s) unanswered. Submit anyway?`))return;
+ busy=true;snap(true);
+ try{await db.collection("submissions").doc(t.id+"_"+me.uid).set({testId:t.id,testTitle:t.title,studentUid:me.uid,studentName:me.displayName||me.email,studentEmail:me.email,
+  answers:t.questions.map((q,i)=>({q:q.text,a:(a.ans[i]||"").trim(),max:q.marks})),tabSwitches:a.tabs||0,camera:!!act.cam,snaps:act.snaps,status:"submitted",released:false,submittedAt:TS()});
+  localStorage.removeItem(act.k);busy=false;stopT();alert("Submitted! Your teacher will review it and publish your marks on your dashboard.");sHome();}
+ catch(e){busy=false;if(auto)clearInterval(tick);alert("Submit failed: "+e.message+"\nYour answers are saved on this page. Click Submit to try again.")}}
+async function sReview(id){const s=(await db.collection("submissions").doc(id+"_"+me.uid).get()).data();
+ $("main").innerHTML=`<button class="btn g" onclick="sHome()">← Back</button><h2>${esc(s.testTitle)}</h2><p><b>Total: ${s.totalScore} / ${s.totalMax}</b></p>`+
+ s.answers.map((x,i)=>`<div class="card"><b>Q${i+1}. ${esc(x.q)}</b><p class="pre"><i>Your answer:</i> ${esc(x.a||"No answer")}</p><p><b>Marks: ${s.marks[i]} / ${s.maxes[i]}</b></p><p class="pre"><i>Feedback:</i> ${esc(s.comments[i]||"—")}</p></div>`).join("")+
+ `<div class="card"><b>Overall feedback</b><p class="pre">${esc(s.overall||"—")}</p></div>`;}
+
+// ================= TEACHER =================
+const nav=a=>`<div class="bar"><h2>Teacher Dashboard</h2><div>${["My Tests","Create Test","Submissions"].map((n,i)=>`<button class="btn${a==i?"":" g"}" onclick="${["tTests","tNew","tSubs"][i]}()">${n}</button>`).join("")}</div></div>`;
+async function tTests(){$("main").innerHTML=nav(0)+"<p>Loading…</p>";
+ const s=await db.collection("tests").get(),l=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+ $("main").innerHTML=nav(0)+(l.length?"":"<p>No tests yet. Click “Create Test”.</p>")+l.map(t=>`<div class="card"><h3>${esc(t.title)} <span class="tag ${t.published?"ok":"no"}">${t.published?"Published":"Hidden"}</span></h3><p class="muted">⏱ ${t.durationMin} min · ${t.total} marks · ${t.questions.length} questions</p><button class="btn b" onclick="tPub('${t.id}',${!t.published})">${t.published?"Unpublish":"Publish"}</button><button class="btn r" onclick="tDel('${t.id}')">Delete</button></div>`).join("");}
+async function tPub(id,v){await db.collection("tests").doc(id).update({published:v});tTests()}
+async function tDel(id){if(confirm("Delete this test? Existing submissions are kept.")){await db.collection("tests").doc(id).delete();tTests()}}
+function tNew(){$("main").innerHTML=nav(1)+`<label>Test Title</label><input id="tt"><label>Time limit (minutes)</label><input id="td" type="number" min="1" value="60"><div id="qs"></div><button class="btn b" onclick="addQ()">+ Add Question</button><button class="btn g" onclick="loadSample()">Load Linux & Networking 10 Questions</button><label><input type="checkbox" id="tp" checked style="width:auto"> Publish to students now</label><button class="btn" onclick="tSave()">Save Test</button>`;addQ();}
+function addQ(t,m){const d=document.createElement("div");d.className="card";
+ d.innerHTML=`<label>Question</label><textarea rows="2" class="qt"></textarea><label>Marks</label><input type="number" class="qm" min="0.5" step="0.5" value="5" style="width:120px"><button class="btn r" onclick="this.parentNode.remove()">Remove</button>`;$("qs").appendChild(d);if(t){d.querySelector(".qt").value=t;d.querySelector(".qm").value=m}}
+async function tSave(){const title=$("tt").value.trim(),dur=+$("td").value;
+ const qs=[...document.querySelectorAll("#qs .card")].map(c=>({text:c.querySelector(".qt").value.trim(),marks:+c.querySelector(".qm").value})).filter(q=>q.text);
+ if(!title||!(dur>=1)||!qs.length||qs.some(q=>!(q.marks>0)))return alert("Enter a title, a time limit of at least 1 minute, and at least one question with marks above 0.");
+ await db.collection("tests").add({title,durationMin:dur,questions:qs,total:qs.reduce((a,q)=>a+q.marks,0),published:$("tp").checked,createdAt:TS()});
+ alert("Test saved.");tTests();}
+async function tSubs(){$("main").innerHTML=nav(2)+"<p>Loading…</p>";
+ const s=await db.collection("submissions").get();
+ SUBS=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.submittedAt?.seconds||0)-(a.submittedAt?.seconds||0));
+ $("main").innerHTML=nav(2)+(SUBS.length?"":"<p>No submissions yet.</p>")+SUBS.map((x,i)=>`<div class="card"><b>${esc(x.studentName)}</b> (${esc(x.studentEmail)})<br><span class="muted">${esc(x.testTitle)} · ${fmt(x.submittedAt)} · ${x.tabSwitches} tab switch(es)</span><br>${x.released?`<span class="tag ok">Published: ${x.totalScore}/${x.totalMax}</span>`:'<span class="tag">Pending review</span>'} <button class="btn b" onclick="tGrade(${i})">${x.released?"Edit Marks":"Grade"}</button></div>`).join("");}
+async function tGrade(i){const x=SUBS[i],t=await db.collection("tests").doc(x.testId).get();
+ const mx=t.exists?t.data().questions.map(q=>q.marks):x.answers.map(a=>a.max);
+ $("main").innerHTML=`<button class="btn g" onclick="tSubs()">← Back</button><h2>${esc(x.studentName)} – ${esc(x.testTitle)}</h2><p class="muted">${esc(x.studentEmail)} · ${x.tabSwitches} tab switch(es) · Camera: ${x.camera?"on":"OFF / not allowed"}</p><div>${(x.snaps||[]).filter(u=>/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(u)).map(u=>`<img src="${u}" style="width:120px;margin:2px;border-radius:4px">`).join("")}</div>`+
+ x.answers.map((a,k)=>`<div class="card"><b>Q${k+1}. ${esc(a.q)}</b><p class="pre"><i>Answer:</i> ${esc(a.a||"No answer provided.")}</p><div class="row"><input class="s mk" type="number" min="0" max="${mx[k]}" step="0.5" placeholder="/ ${mx[k]}" value="${x.marks?x.marks[k]:""}"><input class="cm" placeholder="Feedback comment" value="${esc(x.comments?x.comments[k]:"")}"></div><span class="muted">Max ${mx[k]} marks</span></div>`).join("")+
+ `<label>Overall feedback</label><textarea id="ov" rows="3">${esc(x.overall||"")}</textarea><button class="btn" onclick="tPublish(${i},[${mx}])">Post Marks to Student</button>`;}
+async function tPublish(i,mx){const x=SUBS[i],mk=[...document.querySelectorAll(".mk")].map(e=>+e.value||0),cm=[...document.querySelectorAll(".cm")].map(e=>e.value.trim());
+ if(mk.some((m,k)=>m<0||m>mx[k]))return alert("Marks must be between 0 and the maximum for each question.");
+ if(!confirm("Publish this result? The student will see the marks and feedback."))return;
+ await db.collection("submissions").doc(x.id).update({marks:mk,comments:cm,maxes:mx,overall:$("ov").value.trim(),totalScore:mk.reduce((a,b)=>a+b,0),totalMax:mx.reduce((a,b)=>a+b,0),status:"graded",released:true,gradedAt:TS()});
+ alert("Result published.");tSubs();}
+</script></body></html>
